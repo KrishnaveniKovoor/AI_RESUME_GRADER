@@ -26,7 +26,7 @@ const Navbar = () => {
           AI Resume Grader
         </Link>
 
-        {/* React-controlled hamburger button — no Bootstrap JS needed */}
+        {/* Hamburger button — React-controlled, no Bootstrap JS needed */}
         <button
           className="navbar-toggler border-0"
           type="button"
@@ -38,22 +38,30 @@ const Navbar = () => {
           <span className="navbar-toggler-icon" />
         </button>
 
-        {/* Use inline style for show/hide so it works without Bootstrap JS */}
+        {/*
+          'collapse navbar-collapse' = Bootstrap hides this on mobile by default.
+          Adding 'show' = Bootstrap makes it visible (same as Bootstrap JS does).
+          This way: desktop always shows inline, mobile only shows when hamburger clicked.
+        */}
         <div
-          className="navbar-collapse"
-          style={{
-            display: menuOpen ? 'block' : '',
-          }}
+          className={`collapse navbar-collapse${menuOpen ? ' show' : ''}`}
           id="navbarNav"
         >
-          <ul className="navbar-nav ms-auto align-items-center">
-            <li className="nav-item me-2">
+          <ul className="navbar-nav ms-auto align-items-lg-center">
+
+            {/* Dark / Light mode toggle */}
+            <li className="nav-item me-lg-2">
               <Tooltip title={mode === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}>
-                <IconButton onClick={toggleTheme} size="small" sx={{ color: '#ffffff' }}>
+                <IconButton
+                  onClick={() => { toggleTheme(); }}
+                  size="small"
+                  sx={{ color: '#ffffff', my: 1 }}
+                >
                   {mode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
                 </IconButton>
               </Tooltip>
             </li>
+
             {user ? (
               <>
                 <li className="nav-item">
@@ -61,7 +69,7 @@ const Navbar = () => {
                     className="nav-link text-white"
                     to="/dashboard"
                     onClick={closeMenu}
-                    style={{ fontWeight: location.pathname === '/dashboard' ? '700' : '400' }}
+                    style={{ fontWeight: location.pathname === '/dashboard' ? 700 : 400 }}
                   >
                     Dashboard
                   </Link>
@@ -71,12 +79,12 @@ const Navbar = () => {
                     className="nav-link text-white"
                     to="/history"
                     onClick={closeMenu}
-                    style={{ fontWeight: location.pathname === '/history' ? '700' : '400' }}
+                    style={{ fontWeight: location.pathname === '/history' ? 700 : 400 }}
                   >
                     History
                   </Link>
                 </li>
-                <li className="nav-item">
+                <li className="nav-item mt-1 mt-lg-0 ms-lg-2 pb-2 pb-lg-0">
                   <button
                     className="btn btn-outline-light btn-sm"
                     onClick={() => { logout(); closeMenu(); }}
@@ -92,7 +100,7 @@ const Navbar = () => {
                     className="nav-link text-white"
                     to="/login"
                     onClick={closeMenu}
-                    style={{ fontWeight: location.pathname === '/login' ? '700' : '400' }}
+                    style={{ fontWeight: location.pathname === '/login' ? 700 : 400 }}
                   >
                     Login
                   </Link>
@@ -102,7 +110,7 @@ const Navbar = () => {
                     className="nav-link text-white"
                     to="/register"
                     onClick={closeMenu}
-                    style={{ fontWeight: location.pathname === '/register' ? '700' : '400' }}
+                    style={{ fontWeight: location.pathname === '/register' ? 700 : 400 }}
                   >
                     Register
                   </Link>

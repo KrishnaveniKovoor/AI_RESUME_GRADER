@@ -44,7 +44,7 @@ const register = async (req, res) => {
     const token = generateToken(user._id);
 
     res.status(201).json({
-      user: { id: user._id, name: user.name, email: user.email },
+      user: { id: user._id, name: user.name, email: user.email, role: user.role },
       token,
     });
   } catch (error) {
@@ -77,7 +77,7 @@ const login = async (req, res) => {
     }
 
     const token = generateToken(user._id);
-    res.json({ user: { id: user._id, name: user.name, email: user.email }, token });
+    res.json({ user: { id: user._id, name: user.name, email: user.email, role: user.role }, token });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ message: 'Something went wrong, please try again.' });

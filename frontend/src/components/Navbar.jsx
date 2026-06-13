@@ -26,7 +26,7 @@ const Navbar = () => {
           AI Resume Grader
         </Link>
 
-        {/* Hamburger button — React-controlled, no Bootstrap JS needed */}
+        {/* Hamburger button */}
         <button
           className="navbar-toggler border-0"
           type="button"
@@ -39,15 +39,14 @@ const Navbar = () => {
         </button>
 
         {/*
-          'collapse navbar-collapse' = Bootstrap hides this on mobile by default.
-          Adding 'show' = Bootstrap makes it visible (same as Bootstrap JS does).
-          This way: desktop always shows inline, mobile only shows when hamburger clicked.
+          On mobile: 'show' makes the collapsed menu visible.
+          text-end + align-items-end pushes all items to the right.
         */}
         <div
           className={`collapse navbar-collapse${menuOpen ? ' show' : ''}`}
           id="navbarNav"
         >
-          <ul className="navbar-nav ms-auto align-items-lg-center">
+          <ul className="navbar-nav ms-auto align-items-lg-center align-items-end">
 
             {/* Dark / Light mode toggle */}
             <li className="nav-item me-lg-2">
@@ -64,6 +63,22 @@ const Navbar = () => {
 
             {user ? (
               <>
+                {user.role === 'admin' && (
+                  <li className="nav-item me-lg-1">
+                    <span
+                      className="badge text-white me-1"
+                      style={{
+                        background: 'rgba(255,193,7,0.25)',
+                        border: '1px solid rgba(255,193,7,0.6)',
+                        fontSize: '0.7rem',
+                        padding: '3px 8px',
+                        borderRadius: '12px',
+                      }}
+                    >
+                      👑 Admin
+                    </span>
+                  </li>
+                )}
                 <li className="nav-item">
                   <Link
                     className="nav-link text-white"

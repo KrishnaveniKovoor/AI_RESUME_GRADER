@@ -147,6 +147,20 @@ const getHistory = async (req, res) => {
   }
 };
 
+// GET /api/analysis/admin/all-history  (admin only)
+const getAllHistory = async (req, res) => {
+  try {
+    const history = await ResumeAnalysis
+      .find({})
+      .sort({ createdAt: -1 })
+      .populate('userId', 'name email');
+    res.json({ history });
+  } catch (error) {
+    console.error('Get all history error:', error);
+    res.status(500).json({ message: 'Failed to retrieve all history.' });
+  }
+};
+
 // POST /api/analysis/rewrite-resume
 const rewriteResume = async (req, res) => {
   const { fileBuffer, jobDescription, recruiterPersona, resumeContext, analysisId } = req.body;
@@ -235,6 +249,7 @@ module.exports = {
   uploadResume,
   analyze,
   getHistory,
+  getAllHistory,
   deleteAnalysis,
   rewriteResume,
   generateInterviewQuestions,

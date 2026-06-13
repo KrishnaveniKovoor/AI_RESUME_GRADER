@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+// simple helper so we're not repeating jwt.sign everywhere
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: '7d',
@@ -32,7 +33,7 @@ const register = async (req, res) => {
     });
   } catch (error) {
     console.error('Register error:', error);
-    res.status(500).json({ message: 'Registration failed. Please try again.' });
+    res.status(500).json({ message: 'Something went wrong, try again.' });
   }
 };
 
@@ -57,7 +58,7 @@ const login = async (req, res) => {
     res.json({ user: { id: user._id, name: user.name, email: user.email }, token });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ message: 'Login failed. Please try again.' });
+    res.status(500).json({ message: 'Something went wrong, try again.' });
   }
 };
 

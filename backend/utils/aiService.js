@@ -1,13 +1,12 @@
 const Groq = require("groq-sdk");
 const personaPrompts = require("./promptTemplates");
 
+// TODO: look into whether we need request-level clients instead of a singleton
 let groqClient;
 const getGroqClient = () => {
   if (!groqClient) {
     const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) {
-      throw new Error('GROQ_API_KEY is required for Groq client initialization.');
-    }
+    if (!apiKey) throw new Error('GROQ_API_KEY not set in environment.');
     groqClient = new Groq({ apiKey });
   }
   return groqClient;
@@ -50,82 +49,27 @@ Expected format:
 
 const cleanJsonResponse = (rawText) => rawText.replace(/```json/g, "").replace(/```/g, "").trim();
 
-const extractJsonObjects = (text) => {
-  const objects = [];
-  let depth = 0;
-  let inString = false;
-  let escape = false;
-  let start = -1;
-
-  for (let i = 0; i < text.length; i += 1) {
-    const char = text[i];
-
-    if (char === '\\' && !escape) {
-      escape = true;
-      continue;
-    }
-
-    if (char === '"' && !escape) {
-      inString = !inString;
-    }
-
-    if (!inString) {
-      if (char === '{') {
-        if (depth === 0) start = i;
-        depth += 1;
-      } else if (char === '}') {
-        depth -= 1;
-        if (depth === 0 && start !== -1) {
-          objects.push(text.slice(start, i + 1));
-          start = -1;
-        }
-      }
-    }
-
-    if (escape) escape = false;
-  }
-
-  return objects;
+// pull the first {...} block out of the text — groq sometimes adds extra prose
+const extractFirstJsonObject = (text) => {
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start === -1 || end === -1) return null;
+  return text.slice(start, end + 1);
 };
 
-const parseJsonResponse = (rawText, options = {}) => {
-  const cleanedText = cleanJsonResponse(rawText);
-  const jsonObjects = extractJsonObjects(cleanedText);
-  let index = options.index ?? 0;
-
-  if (jsonObjects.length === 0) {
-    return JSON.parse(cleanedText);
-  }
-
-  if (index < 0) {
-    index = jsonObjects.length + index;
-  }
-
-  index = Math.min(Math.max(index, 0), jsonObjects.length - 1);
-  const selected = jsonObjects[index];
-  return JSON.parse(selected);
+const parseJsonResponse = (rawText) => {
+  const cleaned = cleanJsonResponse(rawText);
+  const block = extractFirstJsonObject(cleaned);
+  return JSON.parse(block || cleaned);
 };
 
 const normalizeArrayField = (val) => {
   if (Array.isArray(val)) return val;
   if (!val) return [];
+  // groq occasionally returns a newline-separated string instead of an array
   if (typeof val === 'string') {
-    const trimmed = val.trim();
-    if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || trimmed.startsWith('"[')) {
-      try {
-        const parsed = JSON.parse(trimmed);
-        if (Array.isArray(parsed)) return parsed;
-      } catch (e) {
-        // fall through
-      }
-    }
-
-    return trimmed
-      .split(/\r?\n|\u2022|\-|;|\*|\u2023|,\s*/)
-      .map((s) => s.trim())
-      .filter(Boolean);
+    return val.split('\n').map(s => s.trim()).filter(Boolean);
   }
-
   return [];
 };
 
@@ -179,13 +123,13 @@ const normalizeAnalysisResponse = (parsed) => ({
   missingKeywords: normalizeArrayField(parsed.missingKeywords),
   missingSkills: normalizeArrayField(parsed.missingSkills),
   suggestions: normalizeArrayField(parsed.suggestions),
-  hiringRecommendation: parsed.hiringRecommendation || parsed.hiring_recommendation || '',
+  hiringRecommendation: parsed.hiringRecommendation || '',
 });
 
 const normalizeInterviewResponse = (parsed) => ({
-  technicalQuestions: normalizeArrayField(parsed.technicalQuestions || parsed.technical_questions || parsed.technical),
-  projectQuestions: normalizeArrayField(parsed.projectQuestions || parsed.project_questions || parsed.projects),
-  hrQuestions: normalizeArrayField(parsed.hrQuestions || parsed.hr_questions || parsed.behavioralQuestions || parsed.behavioral_questions || parsed.hr),
+  technicalQuestions: normalizeArrayField(parsed.technicalQuestions || parsed.technical),
+  projectQuestions: normalizeArrayField(parsed.projectQuestions || parsed.projects),
+  hrQuestions: normalizeArrayField(parsed.hrQuestions || parsed.hr),
 });
 
 const analyzeResumeWithAI = async (persona, resumeText, jobDescription) => {
@@ -298,49 +242,24 @@ Respond ONLY with a valid JSON object. Do not use markdown. Do not explain. No t
 const generateInterviewQuestionsWithAI = async (persona, resumeText, jobDescription) => {
   const prompt = buildInterviewPrompt(persona, resumeText, jobDescription);
 
-  let rawText = "";
-
   try {
     const response = await getGroqClient().chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [
-        {
-          role: "system",
-          content: "You are an expert interview coach and recruiter persona simulator.",
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
+        { role: "system", content: "You are an expert interview coach and recruiter persona simulator." },
+        { role: "user", content: prompt },
       ],
       temperature: 0.4,
       max_tokens: 1200,
     });
 
-    rawText = response.choices[0]?.message?.content || "";
-  } catch (error) {
-    console.error('Groq interview generation failed:', {
-      message: error.message,
-      status: error.status,
-      type: error.type,
-      code: error.code,
-    });
-    return buildInterviewFallback(persona, resumeText, jobDescription);
-  }
-
-  try {
+    const rawText = response.choices[0]?.message?.content || "";
+    // console.log('raw interview response:', rawText);
     const parsed = parseJsonResponse(rawText);
     return normalizeInterviewResponse(parsed);
   } catch (error) {
-    console.error('Failed parsing Groq interview response:', { error: error.message, rawText });
-    // Try parsing the last JSON block if multiple JSON objects were returned.
-    try {
-      const parsed = parseJsonResponse(rawText, { index: -1 });
-      return normalizeInterviewResponse(parsed);
-    } catch (fallbackError) {
-      console.error('Fallback interview JSON parsing failed:', { error: fallbackError.message });
-      return buildInterviewFallback(persona, resumeText, jobDescription);
-    }
+    console.error('Interview generation failed, using fallback:', error.message);
+    return buildInterviewFallback(persona, resumeText, jobDescription);
   }
 };
 

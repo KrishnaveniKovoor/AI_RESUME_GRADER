@@ -42,12 +42,12 @@ const buildResumeContextFromAnalysis = (analysis) => {
 const uploadResume = async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ message: 'A PDF resume file is required.' });
+      return res.status(400).json({ message: 'No file uploaded.' });
     }
     res.json({ fileName: req.file.filename, originalName: req.file.originalname });
   } catch (error) {
     console.error('Upload error:', error);
-    res.status(500).json({ message: 'File upload failed.' });
+    res.status(500).json({ message: 'Upload failed.' });
   }
 };
 
@@ -108,21 +108,22 @@ const analyze = async (req, res) => {
     };
   }
 
+  // TODO: delete uploaded file after analysis is saved to keep uploads/ clean
   const analysis = await ResumeAnalysis.create({
     userId: req.user._id,
     resumeFileName,
     jobDescription,
     recruiterPersona,
     atsScore: aiResult.atsScore || localScore,
-    technicalSkillsMatch: typeof aiResult.technicalSkillsMatch === 'number' ? aiResult.technicalSkillsMatch : 0,
-    projectsMatch: typeof aiResult.projectsMatch === 'number' ? aiResult.projectsMatch : 0,
-    experienceMatch: typeof aiResult.experienceMatch === 'number' ? aiResult.experienceMatch : 0,
-    educationMatch: typeof aiResult.educationMatch === 'number' ? aiResult.educationMatch : 0,
-    missingKeywords: Array.isArray(aiResult.missingKeywords) ? aiResult.missingKeywords : (aiResult.missingKeywords ? [aiResult.missingKeywords] : missingKeywords),
-    missingSkills: Array.isArray(aiResult.missingSkills) ? aiResult.missingSkills : (aiResult.missingSkills ? [aiResult.missingSkills] : []),
-    strengths: Array.isArray(aiResult.strengths) ? aiResult.strengths : (aiResult.strengths ? [aiResult.strengths] : ['No strengths found.']),
-    weaknesses: Array.isArray(aiResult.weaknesses) ? aiResult.weaknesses : (aiResult.weaknesses ? [aiResult.weaknesses] : ['No weaknesses detected.']),
-    suggestions: Array.isArray(aiResult.suggestions) ? aiResult.suggestions : (aiResult.suggestions ? [aiResult.suggestions] : ['No suggestions available.']),
+    technicalSkillsMatch: aiResult.technicalSkillsMatch || 0,
+    projectsMatch: aiResult.projectsMatch || 0,
+    experienceMatch: aiResult.experienceMatch || 0,
+    educationMatch: aiResult.educationMatch || 0,
+    missingKeywords: Array.isArray(aiResult.missingKeywords) ? aiResult.missingKeywords : missingKeywords,
+    missingSkills: Array.isArray(aiResult.missingSkills) ? aiResult.missingSkills : [],
+    strengths: Array.isArray(aiResult.strengths) ? aiResult.strengths : ['No strengths found.'],
+    weaknesses: Array.isArray(aiResult.weaknesses) ? aiResult.weaknesses : ['No weaknesses detected.'],
+    suggestions: Array.isArray(aiResult.suggestions) ? aiResult.suggestions : [],
     hiringRecommendation: aiResult.hiringRecommendation || 'No recommendation available.',
     aiFallback,
   });

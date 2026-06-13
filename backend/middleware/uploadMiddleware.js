@@ -1,16 +1,9 @@
 const multer = require('multer');
-const path = require('path');
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, '..', 'uploads'));
-  },
-  filename: function (req, file, cb) {
-    const timestamp = Date.now();
-    const cleanName = file.originalname.replace(/\s+/g, '_');
-    cb(null, `${timestamp}_${cleanName}`);
-  },
-});
+// Use memoryStorage so files are kept in req.file.buffer.
+// Render (and most cloud hosts) have ephemeral disks — diskStorage
+// files are wiped on every restart, causing 500 errors on upload.
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   const allowed = [
@@ -28,3 +21,4 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({ storage, fileFilter, limits: { fileSize: 5 * 1024 * 1024 } });
 
 module.exports = upload;
+

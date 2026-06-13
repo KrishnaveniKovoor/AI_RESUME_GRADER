@@ -35,15 +35,25 @@ const Dashboard = () => {
     try {
       const formData = new FormData();
       formData.append('resume', resumeFile);
+
+      // Upload returns base64 buffer (no disk writes on server)
       const uploadResponse = await uploadResumeFile(formData);
       const analysisPayload = {
+        fileBuffer: uploadResponse.data.fileBuffer,
         resumeFileName: uploadResponse.data.fileName,
         jobDescription,
         recruiterPersona,
       };
+
       const analyzeResponse = await submitAnalysis(analysisPayload);
+      // Store result but drop the large fileBuffer before persisting to localStorage
+      const payloadToStore = {
+        resumeFileName: analysisPayload.resumeFileName,
+        jobDescription,
+        recruiterPersona,
+      };
       localStorage.setItem('resume_grader_latest_result', JSON.stringify(analyzeResponse.data.analysis));
-      localStorage.setItem('resume_grader_latest_payload', JSON.stringify(analysisPayload));
+      localStorage.setItem('resume_grader_latest_payload', JSON.stringify(payloadToStore));
       navigate('/results');
     } catch (err) {
       setError(err.response?.data?.message || 'Unable to perform analysis.');

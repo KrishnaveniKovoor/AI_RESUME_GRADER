@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useThemeMode } from '../context/ThemeContext';
 import IconButton from '@mui/material/IconButton';
@@ -9,25 +10,42 @@ import DarkModeIcon from '@mui/icons-material/DarkMode';
 const Navbar = () => {
   const { user, logout } = useAuth();
   const { mode, toggleTheme } = useThemeMode();
+  const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const closeMenu = () => setMenuOpen(false);
+  const toggleMenu = () => setMenuOpen((prev) => !prev);
 
   return (
-    <nav className="navbar navbar-expand-lg" style={{ background: mode === 'light' ? '#0077b6' : '#023e8a' }}>
+    <nav
+      className="navbar navbar-expand-lg"
+      style={{ background: mode === 'light' ? '#0077b6' : '#023e8a' }}
+    >
       <div className="container">
-        <Link className="navbar-brand text-white" to="/dashboard">
+        <Link className="navbar-brand text-white fw-bold" to="/dashboard" onClick={closeMenu}>
           AI Resume Grader
         </Link>
+
+        {/* React-controlled hamburger button — no Bootstrap JS needed */}
         <button
-          className="navbar-toggler"
+          className="navbar-toggler border-0"
           type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#navbarNav"
-          aria-controls="navbarNav"
-          aria-expanded="false"
+          aria-expanded={menuOpen}
           aria-label="Toggle navigation"
+          onClick={toggleMenu}
+          style={{ boxShadow: 'none', outline: 'none' }}
         >
           <span className="navbar-toggler-icon" />
         </button>
-        <div className="collapse navbar-collapse" id="navbarNav">
+
+        {/* Use inline style for show/hide so it works without Bootstrap JS */}
+        <div
+          className="navbar-collapse"
+          style={{
+            display: menuOpen ? 'block' : '',
+          }}
+          id="navbarNav"
+        >
           <ul className="navbar-nav ms-auto align-items-center">
             <li className="nav-item me-2">
               <Tooltip title={mode === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}>
@@ -39,17 +57,30 @@ const Navbar = () => {
             {user ? (
               <>
                 <li className="nav-item">
-                  <Link className="nav-link text-white" to="/dashboard">
+                  <Link
+                    className="nav-link text-white"
+                    to="/dashboard"
+                    onClick={closeMenu}
+                    style={{ fontWeight: location.pathname === '/dashboard' ? '700' : '400' }}
+                  >
                     Dashboard
                   </Link>
                 </li>
                 <li className="nav-item">
-                  <Link className="nav-link text-white" to="/history">
+                  <Link
+                    className="nav-link text-white"
+                    to="/history"
+                    onClick={closeMenu}
+                    style={{ fontWeight: location.pathname === '/history' ? '700' : '400' }}
+                  >
                     History
                   </Link>
                 </li>
                 <li className="nav-item">
-                  <button className="btn btn-outline-light btn-sm" onClick={logout}>
+                  <button
+                    className="btn btn-outline-light btn-sm"
+                    onClick={() => { logout(); closeMenu(); }}
+                  >
                     Logout
                   </button>
                 </li>
@@ -57,12 +88,22 @@ const Navbar = () => {
             ) : (
               <>
                 <li className="nav-item">
-                  <Link className="nav-link text-white" to="/login">
+                  <Link
+                    className="nav-link text-white"
+                    to="/login"
+                    onClick={closeMenu}
+                    style={{ fontWeight: location.pathname === '/login' ? '700' : '400' }}
+                  >
                     Login
                   </Link>
                 </li>
                 <li className="nav-item">
-                  <Link className="nav-link text-white" to="/register">
+                  <Link
+                    className="nav-link text-white"
+                    to="/register"
+                    onClick={closeMenu}
+                    style={{ fontWeight: location.pathname === '/register' ? '700' : '400' }}
+                  >
                     Register
                   </Link>
                 </li>

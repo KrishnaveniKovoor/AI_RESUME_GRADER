@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+
 // simple helper so we're not repeating jwt.sign everywhere
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {

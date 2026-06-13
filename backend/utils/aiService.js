@@ -1,6 +1,5 @@
 const Groq = require("groq-sdk");
 const personaPrompts = require("./promptTemplates");
-
 // TODO: look into whether we need request-level clients instead of a singleton
 let groqClient;
 const getGroqClient = () => {

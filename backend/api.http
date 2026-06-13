@@ -1,0 +1,104 @@
+### AI Resume Grader - API Test File
+### Use with VS Code REST Client extension or JetBrains HTTP Client
+
+@baseUrl = http://localhost:5000
+@token = YOUR_JWT_TOKEN_HERE
+
+# ─────────────────────────────────────────
+# 🔍 Health Check
+# ─────────────────────────────────────────
+
+### GET Root
+GET {{baseUrl}}/
+
+# ─────────────────────────────────────────
+# 🔐 Auth Routes  (/api/auth)
+# ─────────────────────────────────────────
+
+### Register a new user
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "name": "Test User",
+  "email": "testuser@example.com",
+  "password": "Password123!"
+}
+
+###
+
+### Login
+# Copy the token from the response and paste it into @token above
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "testuser@example.com",
+  "password": "Password123!"
+}
+
+# ─────────────────────────────────────────
+# 📄 Analysis Routes  (/api/analysis)
+# All routes below require Authorization header
+# ─────────────────────────────────────────
+
+### Upload Resume (multipart/form-data)
+# Replace <path-to-your-resume.pdf> with an actual file path
+POST {{baseUrl}}/api/analysis/upload
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=----FormBoundary
+
+------FormBoundary
+Content-Disposition: form-data; name="resume"; filename="resume.pdf"
+Content-Type: application/pdf
+
+< C:\path\to\your\resume.pdf
+------FormBoundary--
+
+###
+
+### Analyze Resume (after uploading)
+POST {{baseUrl}}/api/analysis/analyze
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "resumeId": "PASTE_RESUME_ID_HERE",
+  "jobDescription": "We are looking for a full-stack developer with experience in React, Node.js, and MongoDB."
+}
+
+###
+
+### Rewrite Resume
+POST {{baseUrl}}/api/analysis/rewrite-resume
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "resumeId": "PASTE_RESUME_ID_HERE",
+  "jobDescription": "We are looking for a full-stack developer with experience in React, Node.js, and MongoDB."
+}
+
+###
+
+### Generate Interview Questions
+POST {{baseUrl}}/api/analysis/interview-questions
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "resumeId": "PASTE_RESUME_ID_HERE",
+  "jobDescription": "We are looking for a full-stack developer with experience in React, Node.js, and MongoDB."
+}
+
+###
+
+### Get Analysis History
+GET {{baseUrl}}/api/analysis/history
+Authorization: Bearer {{token}}
+
+###
+
+### Delete an Analysis by ID
+DELETE {{baseUrl}}/api/analysis/PASTE_ANALYSIS_ID_HERE
+Authorization: Bearer {{token}}

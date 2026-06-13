@@ -22,7 +22,7 @@ const AnalysisCard = ({ content, sx = {} }) => {
       );
     }
 
-    // Fallback to string rendering (preserve newlines)
+    // Fallback to string rendering 
     return (
       <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
         {content}

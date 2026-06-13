@@ -24,7 +24,7 @@ const startServer = async () => {
     res.json({ message: 'AI Resume Grader API is running' });
   });
 
-  // Global error handler — must be last, after all routes
+  // Global error handler 
   // eslint-disable-next-line no-unused-vars
   app.use((err, req, res, next) => {
     console.error('Unhandled error:', err);

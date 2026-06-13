@@ -109,7 +109,7 @@ const analyze = async (req, res) => {
     };
   }
 
-  // TODO: delete uploaded file after analysis is saved to keep uploads/ clean
+  // TODO
   const analysis = await ResumeAnalysis.create({
     userId: req.user._id,
     resumeFileName,

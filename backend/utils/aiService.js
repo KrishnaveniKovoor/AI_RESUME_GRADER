@@ -1,6 +1,6 @@
 const Groq = require("groq-sdk");
 const personaPrompts = require("./promptTemplates");
-// TODO: look into whether we need request-level clients instead of a singleton
+// TODO
 let groqClient;
 const getGroqClient = () => {
   if (!groqClient) {
@@ -48,7 +48,7 @@ Expected format:
 
 const cleanJsonResponse = (rawText) => rawText.replace(/```json/g, "").replace(/```/g, "").trim();
 
-// pull the first {...} block out of the text — groq sometimes adds extra prose
+
 const extractFirstJsonObject = (text) => {
   const start = text.indexOf('{');
   const end = text.lastIndexOf('}');
@@ -65,7 +65,7 @@ const parseJsonResponse = (rawText) => {
 const normalizeArrayField = (val) => {
   if (Array.isArray(val)) return val;
   if (!val) return [];
-  // groq occasionally returns a newline-separated string instead of an array
+  // may sometimes return a newline-separated string instead of an array
   if (typeof val === 'string') {
     return val.split('\n').map(s => s.trim()).filter(Boolean);
   }

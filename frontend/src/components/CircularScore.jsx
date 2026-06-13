@@ -10,23 +10,23 @@ const CircularScore = ({ score, label = 'ATS Score' }) => {
   const progressOffset = circumference - (progress / 100) * circumference;
   const center = size / 2;
 
-  // Light mode: rich, dark saturated colors so the arc pops on the light teal card
-  // Dark mode: keep the existing bright teal palette
+  // Light mode
+  // Dark mode
   const getScoreColor = () => {
     if (mode === 'light') {
-      if (progress >= 90) return '#03045e';   // Deep Twilight — excellent
-      if (progress >= 70) return '#023e8a';   // French Blue — good
-      return '#0077b6';                        // Bright Teal Blue — needs work
+      if (progress >= 90) return '#03045e';  
+      if (progress >= 70) return '#023e8a';  
+      return '#0077b6';                        
     } else {
-      if (progress >= 90) return '#48cae4';   // Sky Aqua
-      if (progress >= 70) return '#00b4d8';   // Turquoise Surf
-      return '#90e0ef';                        // Frosted Blue
+      if (progress >= 90) return '#48cae4';  
+      if (progress >= 70) return '#00b4d8';   
+      return '#90e0ef';                       
     }
   };
 
   const trackColor = mode === 'light'
-    ? 'rgba(3, 4, 94, 0.15)'    // dark navy tint track in light mode
-    : 'rgba(72, 202, 228, 0.2)'; // subtle teal track in dark mode
+    ? 'rgba(3, 4, 94, 0.15)'    
+    : 'rgba(72, 202, 228, 0.2)';
 
   const textColor = mode === 'light' ? '#03045e' : '#e8f4fd';
 

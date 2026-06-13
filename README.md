@@ -1,4 +1,4 @@
-# AI Resume Grader with AI Recruiter Persona Simulator
+# AI Resume Grader 
 
 This repository contains a full-stack MERN application for analyzing resume content, generating ATS scores, and providing recruiter-style feedback powered by AI.
 

@@ -46,9 +46,12 @@ const Results = () => {
 
   const getAnalysisPayload = () => {
     const savedPayload = getSavedAnalysisPayload();
+    // fileBuffer is stored separately because it's large
+    const fileBuffer = localStorage.getItem('resume_grader_file_buffer') || undefined;
 
     return {
       analysisId: analysis?._id,
+      fileBuffer,
       resumeFileName: analysis?.resumeFileName || savedPayload.resumeFileName,
       jobDescription: analysis?.jobDescription || savedPayload.jobDescription,
       recruiterPersona: analysis?.recruiterPersona || savedPayload.recruiterPersona,

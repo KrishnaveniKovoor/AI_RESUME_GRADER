@@ -46,7 +46,7 @@ const Dashboard = () => {
       };
 
       const analyzeResponse = await submitAnalysis(analysisPayload);
-      // Store result but drop the large fileBuffer before persisting to localStorage
+      // Store result and payload for the Results page
       const payloadToStore = {
         resumeFileName: analysisPayload.resumeFileName,
         jobDescription,
@@ -54,6 +54,8 @@ const Dashboard = () => {
       };
       localStorage.setItem('resume_grader_latest_result', JSON.stringify(analyzeResponse.data.analysis));
       localStorage.setItem('resume_grader_latest_payload', JSON.stringify(payloadToStore));
+      // Store fileBuffer separately (large) so rewrite/interview can use the actual PDF
+      localStorage.setItem('resume_grader_file_buffer', analysisPayload.fileBuffer || '');
       navigate('/results');
     } catch (err) {
       setError(err.response?.data?.message || 'Unable to perform analysis.');

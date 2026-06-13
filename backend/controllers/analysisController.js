@@ -149,13 +149,34 @@ const getHistory = async (req, res) => {
 
 // POST /api/analysis/rewrite-resume
 const rewriteResume = async (req, res) => {
-  const { fileBuffer, jobDescription, recruiterPersona } = req.body;
-  if (!fileBuffer || !jobDescription || !recruiterPersona) {
-    return res.status(400).json({ message: 'Resume file, job description, and persona are required.' });
+  const { fileBuffer, jobDescription, recruiterPersona, resumeContext, analysisId } = req.body;
+
+  if (!jobDescription || !recruiterPersona) {
+    return res.status(400).json({ message: 'Job description and persona are required.' });
+  }
+
+  if (!fileBuffer && !resumeContext && !analysisId) {
+    return res.status(400).json({ message: 'Resume file, resume context, or analysis ID is required.' });
   }
 
   try {
-    const resumeText = await parsePdfFromBase64(fileBuffer);
+    let resumeText = fileBuffer ? await parsePdfFromBase64(fileBuffer) : '';
+
+    // Fallback 1: look up saved analysis from DB
+    if (!resumeText && analysisId) {
+      const analysis = await ResumeAnalysis.findOne({ _id: analysisId, userId: req.user._id });
+      resumeText = buildResumeContextFromAnalysis(analysis);
+    }
+
+    // Fallback 2: use the plain text context sent directly
+    if (!resumeText && resumeContext) {
+      resumeText = resumeContext;
+    }
+
+    if (!resumeText) {
+      return res.status(404).json({ message: 'Resume file or saved analysis context not found.' });
+    }
+
     const rewriteResult = await rewriteResumeWithAI(recruiterPersona, resumeText, jobDescription);
     res.status(200).json({ optimizedResume: rewriteResult.optimizedResume });
   } catch (error) {

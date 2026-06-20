@@ -4,13 +4,14 @@ const path = require('path');
 const dotenv = require('dotenv');
 
 dotenv.config();
-console.log("MONGODB_URI:", process.env.MONGODB_URI ? '(set)' : '(NOT SET - check Render env vars!)');
+console.log("MONGODB_URI:", (process.env.MONGODB_URI || process.env.MONGO_URI) ? '(set)' : '(NOT SET - check Render env vars!)');
 console.log("JWT_SECRET:", process.env.JWT_SECRET ? '(set)' : '(NOT SET)');
 console.log("GROQ_API_KEY:", process.env.GROQ_API_KEY ? '(set)' : '(NOT SET)');
 
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const analysisRoutes = require('./routes/analysisRoutes');
+const aiRoutes = require('./routes/aiRoutes');
 
 const startServer = async () => {
   await connectDB();
@@ -30,6 +31,7 @@ const startServer = async () => {
 
   app.use('/api/auth', authRoutes);
   app.use('/api/analysis', analysisRoutes);
+  app.use('/api/ai', aiRoutes);
 
   app.get('/', (req, res) => {
     res.json({ message: 'AI Resume Grader API is running' });

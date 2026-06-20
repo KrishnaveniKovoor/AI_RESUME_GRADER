@@ -4,11 +4,18 @@ const User = require('../models/User');
 const authMiddleware = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization || req.headers.Authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
+    if (!authHeader || typeof authHeader !== 'string') {
       return res.status(401).json({ message: 'Unauthorized. No token provided.' });
     }
 
-    const token = authHeader.split(' ')[1];
+    const [scheme, token] = authHeader.trim().split(/\s+/);
+    if (scheme !== 'Bearer' || !token) {
+      return res.status(401).json({ message: 'Unauthorized. Invalid authorization header.' });
+    }
+
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).json({ message: 'Authentication is not configured.' });
+    }
 
     let decoded;
     try {

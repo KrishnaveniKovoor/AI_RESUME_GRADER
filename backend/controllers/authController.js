@@ -5,10 +5,19 @@ const User = require('../models/User');
 
 // simple helper so we're not repeating jwt.sign everywhere
 const generateToken = (id) => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET is not set.');
+  }
+
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: '7d',
   });
 };
+
+const buildAuthResponse = (user) => ({
+  user: { id: user._id, name: user.name, email: user.email, role: user.role },
+  token: generateToken(user._id),
+});
 
 const register = async (req, res) => {
   try {
@@ -41,12 +50,7 @@ const register = async (req, res) => {
       email: email.toLowerCase().trim(),
       password: hashedPassword,
     });
-    const token = generateToken(user._id);
-
-    res.status(201).json({
-      user: { id: user._id, name: user.name, email: user.email, role: user.role },
-      token,
-    });
+    res.status(201).json(buildAuthResponse(user));
   } catch (error) {
     console.error('Register error:', error);
 
@@ -76,8 +80,7 @@ const login = async (req, res) => {
       return res.status(401).json({ message: 'Incorrect password. Please try again.' });
     }
 
-    const token = generateToken(user._id);
-    res.json({ user: { id: user._id, name: user.name, email: user.email, role: user.role }, token });
+    res.json(buildAuthResponse(user));
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ message: 'Something went wrong, please try again.' });

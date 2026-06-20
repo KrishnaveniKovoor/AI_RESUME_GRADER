@@ -45,6 +45,26 @@ const buildResumeContextFromAnalysis = (analysis) => {
   return lines.filter(Boolean).join('\n');
 };
 
+const STOP_WORDS = new Set([
+  'about', 'above', 'after', 'again', 'against', 'also', 'and', 'any', 'are',
+  'because', 'been', 'before', 'being', 'between', 'both', 'can', 'candidate',
+  'concise', 'description', 'did', 'does', 'doing', 'during', 'each', 'few',
+  'for', 'from', 'had', 'has', 'have', 'here', 'into', 'its', 'job', 'more',
+  'most', 'must', 'our', 'out', 'own', 'profile', 'resume', 'role', 'same',
+  'should', 'some', 'such', 'than', 'that', 'the', 'their', 'them', 'then',
+  'there', 'these', 'they', 'this', 'those', 'through', 'use', 'very', 'was',
+  'were', 'what', 'when', 'where', 'which', 'while', 'who', 'will', 'with',
+  'you', 'your',
+]);
+
+const TECHNICAL_TERMS = [
+  'javascript', 'typescript', 'react', 'node', 'express', 'mongodb', 'mongoose',
+  'python', 'java', 'sql', 'mysql', 'postgresql', 'aws', 'azure', 'docker',
+  'kubernetes', 'api', 'rest', 'html', 'css', 'bootstrap', 'git', 'github',
+  'machine', 'learning', 'ai', 'data', 'database', 'frontend', 'backend',
+  'redux', 'vite', 'next', 'angular', 'vue', 'linux', 'testing', 'jest',
+];
+
 const normalizeWords = (text) => [
   ...new Set(
     String(text || '')
@@ -52,7 +72,7 @@ const normalizeWords = (text) => [
       .replace(/[^a-z0-9+#.\s-]/g, ' ')
       .split(/\s+/)
       .map((word) => word.trim())
-      .filter((word) => word.length > 2)
+      .filter((word) => word.length > 2 && !STOP_WORDS.has(word))
   ),
 ];
 
@@ -76,12 +96,6 @@ const buildLocalMatchScores = (resumeText, jobDescription, missingKeywords) => {
     ? Math.round((matchedJobWords.length / usableJobWords.length) * 100)
     : 0;
 
-  const technicalTerms = [
-    'javascript', 'typescript', 'react', 'node', 'express', 'mongodb', 'mongoose',
-    'python', 'java', 'sql', 'mysql', 'postgresql', 'aws', 'azure', 'docker',
-    'kubernetes', 'api', 'rest', 'html', 'css', 'bootstrap', 'git', 'github',
-    'machine', 'learning', 'ai', 'data', 'database', 'frontend', 'backend',
-  ];
   const projectTerms = [
     'project', 'projects', 'built', 'developed', 'implemented', 'designed',
     'deployed', 'created', 'application', 'system', 'dashboard', 'portfolio',
@@ -99,10 +113,65 @@ const buildLocalMatchScores = (resumeText, jobDescription, missingKeywords) => {
   const adjustedFallbackScore = Math.max(0, fallbackScore - keywordPenalty);
 
   return {
-    technicalSkillsMatch: getCategoryScore(resumeWords, jobWords, technicalTerms, adjustedFallbackScore),
+    technicalSkillsMatch: getCategoryScore(resumeWords, jobWords, TECHNICAL_TERMS, adjustedFallbackScore),
     projectsMatch: getCategoryScore(resumeWords, jobWords, projectTerms, adjustedFallbackScore),
     experienceMatch: getCategoryScore(resumeWords, jobWords, experienceTerms, adjustedFallbackScore),
     educationMatch: getCategoryScore(resumeWords, jobWords, educationTerms, adjustedFallbackScore),
+  };
+};
+
+const buildMissingKeywords = (resumeText, jobDescription) => {
+  const resumeWords = normalizeWords(resumeText);
+  const jobWords = normalizeWords(jobDescription);
+
+  return jobWords
+    .filter((keyword) => !resumeWords.includes(keyword))
+    .slice(0, 12);
+};
+
+const buildMissingSkills = (missingKeywords) => {
+  const skills = missingKeywords.filter((keyword) => TECHNICAL_TERMS.includes(keyword));
+  return skills.length ? skills.slice(0, 8) : missingKeywords.slice(0, 6);
+};
+
+const buildLocalAnalysisFallback = ({ localScore, localMatchScores, missingKeywords, missingSkills }) => {
+  const strongAreas = Object.entries({
+    'technical skills': localMatchScores.technicalSkillsMatch,
+    projects: localMatchScores.projectsMatch,
+    experience: localMatchScores.experienceMatch,
+    education: localMatchScores.educationMatch,
+  })
+    .filter(([, score]) => score >= 50)
+    .map(([label]) => label);
+
+  const weakAreas = Object.entries({
+    'technical skills': localMatchScores.technicalSkillsMatch,
+    projects: localMatchScores.projectsMatch,
+    experience: localMatchScores.experienceMatch,
+    education: localMatchScores.educationMatch,
+  })
+    .filter(([, score]) => score < 50)
+    .map(([label]) => label);
+
+  return {
+    atsScore: localScore,
+    ...localMatchScores,
+    missingKeywords,
+    missingSkills,
+    strengths: strongAreas.length
+      ? [`Good alignment found in ${strongAreas.join(', ')} based on resume and job-description keyword overlap.`]
+      : ['Resume text was parsed successfully and compared with the job description using local keyword analysis.'],
+    weaknesses: weakAreas.length
+      ? [`Improve ${weakAreas.join(', ')} alignment by adding relevant, truthful details from your actual work.`]
+      : ['No major local-match weakness found, but the resume can still be improved with stronger measurable achievements.'],
+    suggestions: [
+      'Add the most important missing job keywords naturally in the summary, skills, and project bullets.',
+      'Rewrite project bullets with action verbs, technologies used, and measurable outcomes.',
+      'Keep formatting simple with clear headings so ATS systems can parse the resume easily.',
+    ],
+    hiringRecommendation: localScore >= 75
+      ? 'Good potential match. Resume is reasonably aligned with the job description.'
+      : 'Potential candidate, but resume should be improved with more relevant keywords, skills, and project details.',
   };
 };
 
@@ -136,16 +205,8 @@ const analyze = async (req, res) => {
 
     const resumeText = await parsePdfFromBase64(fileBuffer);
 
-    const keywordCandidates = jobDescription
-      .replace(/[^a-zA-Z0-9,\s]/g, ' ')
-      .split(/[,\s]+/)
-      .filter(Boolean)
-      .map((word) => word.toLowerCase());
-
-    const uniqueKeywords = [...new Set(keywordCandidates)];
-    const missingKeywords = uniqueKeywords
-      .filter((keyword) => keyword.length > 2 && !resumeText.toLowerCase().includes(keyword))
-      .slice(0, 12);
+    const missingKeywords = buildMissingKeywords(resumeText, jobDescription);
+    const missingSkills = buildMissingSkills(missingKeywords);
 
     const localScore = Math.max(
       45,
@@ -161,16 +222,7 @@ const analyze = async (req, res) => {
     } catch (error) {
       console.error('AI analysis failed:', error.message);
       aiFallback = true;
-      aiResult = {
-        atsScore: localScore,
-        ...localMatchScores,
-        missingKeywords,
-        missingSkills: [],
-        strengths: ['AI analysis unavailable due to quota or API restrictions. Showing local resume evaluation instead.'],
-        weaknesses: ['AI analysis unavailable due to quota or API restrictions. Showing local resume evaluation instead.'],
-        suggestions: ['Please try again later when API quota is available.'],
-        hiringRecommendation: 'AI recommendation unavailable. Use the local score as a guide.',
-      };
+      aiResult = buildLocalAnalysisFallback({ localScore, localMatchScores, missingKeywords, missingSkills });
     }
 
     const analysis = await ResumeAnalysis.create({
@@ -184,7 +236,7 @@ const analyze = async (req, res) => {
       experienceMatch: aiResult.experienceMatch ?? localMatchScores.experienceMatch,
       educationMatch: aiResult.educationMatch ?? localMatchScores.educationMatch,
       missingKeywords: Array.isArray(aiResult.missingKeywords) ? aiResult.missingKeywords : missingKeywords,
-      missingSkills: Array.isArray(aiResult.missingSkills) ? aiResult.missingSkills : [],
+      missingSkills: Array.isArray(aiResult.missingSkills) ? aiResult.missingSkills : missingSkills,
       strengths: Array.isArray(aiResult.strengths) ? aiResult.strengths : ['No strengths found.'],
       weaknesses: Array.isArray(aiResult.weaknesses) ? aiResult.weaknesses : ['No weaknesses detected.'],
       suggestions: Array.isArray(aiResult.suggestions) ? aiResult.suggestions : [],

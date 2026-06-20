@@ -65,6 +65,22 @@ const Results = () => {
   const hasRequiredInterviewPayload = (payload) =>
     Boolean((payload.resumeFileName || payload.resumeContext) && payload.jobDescription && payload.recruiterPersona);
 
+  const getFriendlyErrorMessage = (err, fallbackMessage) => {
+    const message = err.response?.data?.message || err.message || fallbackMessage;
+    const lowerMessage = message.toLowerCase();
+
+    if (
+      lowerMessage.includes('rate limit') ||
+      lowerMessage.includes('quota') ||
+      lowerMessage.includes('groq') ||
+      lowerMessage.includes('json')
+    ) {
+      return 'AI service is temporarily unavailable. Please try again after some time.';
+    }
+
+    return message;
+  };
+
   useEffect(() => {
     const saved = localStorage.getItem('resume_grader_latest_result');
     if (saved) {
@@ -119,7 +135,7 @@ const Results = () => {
       const response = await rewriteResume(payload);
       setOptimizedResume(response.data.optimizedResume || '');
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to generate optimized resume.');
+      setError(getFriendlyErrorMessage(err, 'Failed to generate optimized resume.'));
     } finally {
       setLoadingRewrite(false);
     }
@@ -143,7 +159,7 @@ const Results = () => {
       });
     } catch (err) {
       console.error('Interview generation error', err);
-      const message = err.response?.data?.message || err.message || 'Failed to generate interview questions.';
+      const message = getFriendlyErrorMessage(err, 'Failed to generate interview questions.');
       setInterviewError(message);
     } finally {
       setLoadingInterview(false);

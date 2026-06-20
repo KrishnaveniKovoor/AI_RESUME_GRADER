@@ -131,6 +131,59 @@ const normalizeInterviewResponse = (parsed) => ({
   hrQuestions: normalizeArrayField(parsed.hrQuestions || parsed.hr),
 });
 
+const extractKeywords = (text, limit = 12) => {
+  const ignoredWords = new Set([
+    'and', 'the', 'for', 'with', 'you', 'your', 'are', 'this', 'that', 'will',
+    'from', 'have', 'has', 'our', 'job', 'role', 'work', 'team', 'teams',
+    'experience', 'candidate', 'skills', 'using', 'based', 'strong',
+  ]);
+
+  return [
+    ...new Set(
+      text
+        .toLowerCase()
+        .replace(/[^a-z0-9+#.\s-]/g, ' ')
+        .split(/\s+/)
+        .map((word) => word.trim())
+        .filter((word) => word.length > 2 && !ignoredWords.has(word))
+    ),
+  ].slice(0, limit);
+};
+
+const buildRewriteFallback = (persona, resumeText, jobDescription) => {
+  const keywords = extractKeywords(jobDescription);
+  const resumePreview = resumeText
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 12)
+    .join('\n');
+
+  return {
+    optimizedResume: [
+      'AI optimized resume generation is temporarily unavailable because the AI provider quota was reached.',
+      '',
+      'ATS Optimization Draft',
+      '',
+      'Professional Summary',
+      `Candidate profile aligned for a ${persona} review, emphasizing relevant experience, measurable project impact, and job-specific keywords.`,
+      '',
+      'Recommended Keywords To Add Naturally',
+      keywords.length ? keywords.map((keyword) => `- ${keyword}`).join('\n') : '- Add important tools, technologies, and role-specific terms from the job description.',
+      '',
+      'Resume Improvement Checklist',
+      '- Add a short professional summary matched to the target role.',
+      '- Move the most relevant technical skills near the top of the resume.',
+      '- Rewrite project bullets with action verbs, technologies used, and measurable outcomes.',
+      '- Include missing job-description keywords only where they truthfully match your experience.',
+      '- Keep formatting simple for ATS readability: clear headings, bullet points, and consistent dates.',
+      '',
+      'Original Resume Context',
+      resumePreview || 'Resume text could not be extracted clearly from the uploaded PDF.',
+    ].join('\n'),
+  };
+};
+
 const analyzeResumeWithAI = async (persona, resumeText, jobDescription) => {
   const prompt = buildPrompt(persona, resumeText, jobDescription);
   const response = await getGroqClient().chat.completions.create({
@@ -179,32 +232,31 @@ Expected format:
 }
 `;
 
-  const response = await getGroqClient().chat.completions.create({
-    model: "llama-3.3-70b-versatile",
-    messages: [
-      {
-        role: "system",
-        content: "You are an expert resume writer and recruiter persona simulator.",
-      },
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-    temperature: 0.4,
-    max_tokens: 1200,
-  });
-
-  const rawText = response.choices[0]?.message?.content || "";
-
   try {
+    const response = await getGroqClient().chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        {
+          role: "system",
+          content: "You are an expert resume writer and recruiter persona simulator.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      temperature: 0.4,
+      max_tokens: 1200,
+    });
+
+    const rawText = response.choices[0]?.message?.content || "";
     const parsed = parseJsonResponse(rawText);
     return {
       optimizedResume: typeof parsed.optimizedResume === 'string' ? parsed.optimizedResume : String(parsed.optimizedResume || ''),
     };
   } catch (error) {
-    console.error('Failed parsing Groq rewrite response:', { error: error.message, rawText });
-    throw new Error('Groq response could not be parsed as JSON. See server logs for details.');
+    console.error('Resume rewrite AI failed, using fallback:', error.message);
+    return buildRewriteFallback(persona, resumeText, jobDescription);
   }
 };
 

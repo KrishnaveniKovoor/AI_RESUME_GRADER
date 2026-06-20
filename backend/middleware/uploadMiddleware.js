@@ -8,13 +8,12 @@ const storage = multer.memoryStorage();
 const fileFilter = (req, file, cb) => {
   const allowed = [
     'application/pdf',
-    'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   ];
   if (allowed.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Only PDF and Word (.doc, .docx) uploads are allowed.'), false);
+    cb(new Error('Only PDF and DOCX uploads are allowed.'), false);
   }
 };
 

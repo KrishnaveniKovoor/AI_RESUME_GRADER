@@ -13,6 +13,11 @@ const resumeAnalysisSchema = new mongoose.Schema(
       required: true
     },
 
+    fileMimeType: {
+      type: String,
+      default: 'application/pdf',
+    },
+
     jobDescription: {
       type: String,
       required: true

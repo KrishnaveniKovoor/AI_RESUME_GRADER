@@ -26,7 +26,7 @@ const Dashboard = () => {
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!resumeFile || !jobDescription.trim()) {
-      setError('Please upload a PDF resume and enter the job description.');
+      setError('Please upload a PDF or DOCX resume and enter the job description.');
       return;
     }
     setError('');
@@ -40,6 +40,7 @@ const Dashboard = () => {
       const uploadResponse = await uploadResumeFile(formData);
       const analysisPayload = {
         fileBuffer: uploadResponse.data.fileBuffer,
+        fileMimeType: uploadResponse.data.mimeType,
         resumeFileName: uploadResponse.data.fileName,
         jobDescription,
         recruiterPersona,
@@ -49,12 +50,13 @@ const Dashboard = () => {
       // Store result and payload for the Results page
       const payloadToStore = {
         resumeFileName: analysisPayload.resumeFileName,
+        fileMimeType: analysisPayload.fileMimeType,
         jobDescription,
         recruiterPersona,
       };
       localStorage.setItem('resume_grader_latest_result', JSON.stringify(analyzeResponse.data.analysis));
       localStorage.setItem('resume_grader_latest_payload', JSON.stringify(payloadToStore));
-      // Store fileBuffer separately (large) so rewrite/interview can use the actual PDF
+      // Store fileBuffer separately (large) so rewrite/interview can use the actual resume
       localStorage.setItem('resume_grader_file_buffer', analysisPayload.fileBuffer || '');
       navigate('/results');
     } catch (err) {
@@ -73,8 +75,13 @@ const Dashboard = () => {
           {error && <div className="alert alert-danger">{error}</div>}
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
-              <label className="form-label">Upload Resume (PDF)</label>
-              <input type="file" accept="application/pdf" className="form-control" onChange={handleFileChange} />
+              <label className="form-label">Upload Resume (PDF or DOCX)</label>
+              <input
+                type="file"
+                accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                className="form-control"
+                onChange={handleFileChange}
+              />
             </div>
             <div className="mb-4">
               <label className="form-label">Job Description</label>
@@ -108,7 +115,7 @@ const Dashboard = () => {
         <div className="card card-shadow p-4">
           <h5 className="mb-3">How it works</h5>
           <ul>
-            <li>Upload a PDF resume.</li>
+            <li>Upload a PDF or DOCX resume.</li>
             <li>Provide the job description you want to optimize for.</li>
             <li>Select a recruiter persona for tailored feedback.</li>
             <li>Review the ATS score, missing keywords, strengths, and hiring recommendation.</li>

@@ -52,6 +52,7 @@ const Results = () => {
     return {
       analysisId: analysis?._id,
       fileBuffer,
+      fileMimeType: analysis?.fileMimeType || savedPayload.fileMimeType,
       resumeFileName: analysis?.resumeFileName || savedPayload.resumeFileName,
       jobDescription: analysis?.jobDescription || savedPayload.jobDescription,
       recruiterPersona: analysis?.recruiterPersona || savedPayload.recruiterPersona,

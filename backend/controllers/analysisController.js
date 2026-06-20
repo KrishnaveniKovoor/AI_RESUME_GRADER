@@ -1,4 +1,5 @@
 const pdfParse = require('pdf-parse');
+const mammoth = require('mammoth');
 const ResumeAnalysis = require('../models/ResumeAnalysis');
 
 const {
@@ -7,13 +8,19 @@ const {
   generateInterviewQuestionsWithAI,
 } = require('../utils/aiService');
 
-// Helper: parse PDF text from a base64-encoded buffer string.
+// Helper: parse resume text from a base64-encoded PDF or DOCX buffer string.
 // We use memoryStorage on the upload endpoint (no disk writes),
 // so the client sends back the base64 buffer for every operation.
-const parsePdfFromBase64 = async (base64Buffer) => {
+const parseResumeFromBase64 = async (base64Buffer, mimeType = 'application/pdf') => {
   if (!base64Buffer) return '';
   try {
     const buffer = Buffer.from(base64Buffer, 'base64');
+
+    if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      const result = await mammoth.extractRawText({ buffer });
+      return result.value || '';
+    }
+
     const pdfData = await pdfParse(buffer);
     return pdfData.text || '';
   } catch {
@@ -187,6 +194,7 @@ const uploadResume = async (req, res) => {
     res.json({
       fileName: req.file.originalname,
       originalName: req.file.originalname,
+      mimeType: req.file.mimetype,
       fileBuffer: base64Buffer,
     });
   } catch (error) {
@@ -198,21 +206,34 @@ const uploadResume = async (req, res) => {
 // POST /api/analysis/analyze
 const analyze = async (req, res) => {
   try {
-    const { fileBuffer, jobDescription, recruiterPersona, resumeFileName } = req.body;
+    const { fileBuffer, fileMimeType, jobDescription, recruiterPersona, resumeFileName } = req.body;
     if (!fileBuffer || !jobDescription || !recruiterPersona) {
       return res.status(400).json({ message: 'Resume file, job description, and persona are required.' });
     }
 
-    const resumeText = await parsePdfFromBase64(fileBuffer);
+    const resumeText = await parseResumeFromBase64(fileBuffer, fileMimeType);
+
+    if (!resumeText.trim()) {
+      return res.status(400).json({ message: 'Unable to extract readable text from this resume. Please upload a text-based PDF or DOCX file.' });
+    }
 
     const missingKeywords = buildMissingKeywords(resumeText, jobDescription);
     const missingSkills = buildMissingSkills(missingKeywords);
 
-    const localScore = Math.max(
-      45,
-      Math.round(100 - missingKeywords.length * 4 - (resumeText.length < 300 ? 10 : 0))
-    );
     const localMatchScores = buildLocalMatchScores(resumeText, jobDescription, missingKeywords);
+    const keywordScore = Math.max(0, 100 - missingKeywords.length * 6);
+    const lengthPenalty = resumeText.length < 300 ? 10 : 0;
+    const localScore = Math.max(
+      20,
+      Math.round(
+        localMatchScores.technicalSkillsMatch * 0.35 +
+        localMatchScores.projectsMatch * 0.2 +
+        localMatchScores.experienceMatch * 0.2 +
+        localMatchScores.educationMatch * 0.1 +
+        keywordScore * 0.15 -
+        lengthPenalty
+      )
+    );
 
     let aiResult;
     let aiFallback = false;
@@ -228,6 +249,7 @@ const analyze = async (req, res) => {
     const analysis = await ResumeAnalysis.create({
       userId: req.user._id,
       resumeFileName: resumeFileName || 'uploaded_resume.pdf',
+      fileMimeType: fileMimeType || 'application/pdf',
       jobDescription,
       recruiterPersona,
       atsScore: aiResult.atsScore || localScore,
@@ -278,7 +300,7 @@ const getAllHistory = async (req, res) => {
 
 // POST /api/analysis/rewrite-resume
 const rewriteResume = async (req, res) => {
-  const { fileBuffer, jobDescription, recruiterPersona, resumeContext, analysisId } = req.body;
+  const { fileBuffer, fileMimeType, jobDescription, recruiterPersona, resumeContext, analysisId } = req.body;
 
   if (!jobDescription || !recruiterPersona) {
     return res.status(400).json({ message: 'Job description and persona are required.' });
@@ -289,7 +311,7 @@ const rewriteResume = async (req, res) => {
   }
 
   try {
-    let resumeText = fileBuffer ? await parsePdfFromBase64(fileBuffer) : '';
+    let resumeText = fileBuffer ? await parseResumeFromBase64(fileBuffer, fileMimeType) : '';
 
     // Fallback 1: look up saved analysis from DB
     if (!resumeText && analysisId) {
@@ -316,13 +338,13 @@ const rewriteResume = async (req, res) => {
 
 // POST /api/analysis/interview-questions
 const generateInterviewQuestions = async (req, res) => {
-  const { analysisId, fileBuffer, jobDescription, recruiterPersona, resumeContext } = req.body;
+  const { analysisId, fileBuffer, fileMimeType, jobDescription, recruiterPersona, resumeContext } = req.body;
   if ((!fileBuffer && !resumeContext && !analysisId) || !jobDescription || !recruiterPersona) {
     return res.status(400).json({ message: 'Resume context, job description, and persona are required.' });
   }
 
   try {
-    let resumeText = fileBuffer ? await parsePdfFromBase64(fileBuffer) : '';
+    let resumeText = fileBuffer ? await parseResumeFromBase64(fileBuffer, fileMimeType) : '';
 
     if (!resumeText && analysisId) {
       const analysis = await ResumeAnalysis.findOne({ _id: analysisId, userId: req.user._id });

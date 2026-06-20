@@ -45,6 +45,67 @@ const buildResumeContextFromAnalysis = (analysis) => {
   return lines.filter(Boolean).join('\n');
 };
 
+const normalizeWords = (text) => [
+  ...new Set(
+    String(text || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9+#.\s-]/g, ' ')
+      .split(/\s+/)
+      .map((word) => word.trim())
+      .filter((word) => word.length > 2)
+  ),
+];
+
+const getCategoryScore = (resumeWords, jobWords, categoryTerms, fallbackScore) => {
+  const relevantTerms = jobWords.filter((word) => categoryTerms.includes(word));
+
+  if (!relevantTerms.length) {
+    return fallbackScore;
+  }
+
+  const matchedTerms = relevantTerms.filter((word) => resumeWords.includes(word));
+  return Math.round((matchedTerms.length / relevantTerms.length) * 100);
+};
+
+const buildLocalMatchScores = (resumeText, jobDescription, missingKeywords) => {
+  const resumeWords = normalizeWords(resumeText);
+  const jobWords = normalizeWords(jobDescription);
+  const usableJobWords = jobWords.filter((word) => word.length > 2);
+  const matchedJobWords = usableJobWords.filter((word) => resumeWords.includes(word));
+  const fallbackScore = usableJobWords.length
+    ? Math.round((matchedJobWords.length / usableJobWords.length) * 100)
+    : 0;
+
+  const technicalTerms = [
+    'javascript', 'typescript', 'react', 'node', 'express', 'mongodb', 'mongoose',
+    'python', 'java', 'sql', 'mysql', 'postgresql', 'aws', 'azure', 'docker',
+    'kubernetes', 'api', 'rest', 'html', 'css', 'bootstrap', 'git', 'github',
+    'machine', 'learning', 'ai', 'data', 'database', 'frontend', 'backend',
+  ];
+  const projectTerms = [
+    'project', 'projects', 'built', 'developed', 'implemented', 'designed',
+    'deployed', 'created', 'application', 'system', 'dashboard', 'portfolio',
+  ];
+  const experienceTerms = [
+    'experience', 'internship', 'intern', 'worked', 'professional', 'years',
+    'collaborated', 'managed', 'led', 'team', 'client', 'production',
+  ];
+  const educationTerms = [
+    'degree', 'bachelor', 'master', 'btech', 'mtech', 'computer', 'science',
+    'engineering', 'university', 'college', 'education', 'graduate',
+  ];
+
+  const keywordPenalty = Math.min(missingKeywords.length * 3, 30);
+  const adjustedFallbackScore = Math.max(0, fallbackScore - keywordPenalty);
+
+  return {
+    technicalSkillsMatch: getCategoryScore(resumeWords, jobWords, technicalTerms, adjustedFallbackScore),
+    projectsMatch: getCategoryScore(resumeWords, jobWords, projectTerms, adjustedFallbackScore),
+    experienceMatch: getCategoryScore(resumeWords, jobWords, experienceTerms, adjustedFallbackScore),
+    educationMatch: getCategoryScore(resumeWords, jobWords, educationTerms, adjustedFallbackScore),
+  };
+};
+
 // POST /api/analysis/upload
 // File lives in req.file.buffer (memoryStorage). We return it as base64
 // so the client can pass it back to /analyze — no disk I/O needed.
@@ -90,6 +151,7 @@ const analyze = async (req, res) => {
       45,
       Math.round(100 - missingKeywords.length * 4 - (resumeText.length < 300 ? 10 : 0))
     );
+    const localMatchScores = buildLocalMatchScores(resumeText, jobDescription, missingKeywords);
 
     let aiResult;
     let aiFallback = false;
@@ -101,6 +163,7 @@ const analyze = async (req, res) => {
       aiFallback = true;
       aiResult = {
         atsScore: localScore,
+        ...localMatchScores,
         missingKeywords,
         missingSkills: [],
         strengths: ['AI analysis unavailable due to quota or API restrictions. Showing local resume evaluation instead.'],
@@ -116,10 +179,10 @@ const analyze = async (req, res) => {
       jobDescription,
       recruiterPersona,
       atsScore: aiResult.atsScore || localScore,
-      technicalSkillsMatch: aiResult.technicalSkillsMatch || 0,
-      projectsMatch: aiResult.projectsMatch || 0,
-      experienceMatch: aiResult.experienceMatch || 0,
-      educationMatch: aiResult.educationMatch || 0,
+      technicalSkillsMatch: aiResult.technicalSkillsMatch ?? localMatchScores.technicalSkillsMatch,
+      projectsMatch: aiResult.projectsMatch ?? localMatchScores.projectsMatch,
+      experienceMatch: aiResult.experienceMatch ?? localMatchScores.experienceMatch,
+      educationMatch: aiResult.educationMatch ?? localMatchScores.educationMatch,
       missingKeywords: Array.isArray(aiResult.missingKeywords) ? aiResult.missingKeywords : missingKeywords,
       missingSkills: Array.isArray(aiResult.missingSkills) ? aiResult.missingSkills : [],
       strengths: Array.isArray(aiResult.strengths) ? aiResult.strengths : ['No strengths found.'],
